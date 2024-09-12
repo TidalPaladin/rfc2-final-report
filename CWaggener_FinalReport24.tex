@@ -85,7 +85,8 @@ This work presents MiT-UB, a novel deep learning architecture based on Vision Tr
 of ViTs, which have shown remarkable success in image analysis, we adapt this technology to
 medical imaging with the goal of enhancing early and precise detection of breast cancer.
 A thorough set of ablation studies using CIFAR-10 inform the design of MiT-UB, achieving a maximum test accuracy of
-$87.5\%$ with supervised fine-tuning and $81.97\%$ with linear probing, while not relying on external data or models.
+$87.5\%$ with supervised fine-tuning and $79.29\%$ with linear probing, while not relying on external data, teacher models,
+or extensive augmentation.
 This optimized design was applied to the medical domain where we propose AViT, an adaptive vision transformer architecture
 well suited to high resolution data. Through multiple pre-training stages and a supervised fine-tuning stage we optimize
 MiT-UB for breast cancer triage. An enriched test dataset of $4208$ mammograms from $1052$ patients is curated from the EMBED dataset, on which MiT-UB achieves an AUROC of $0.8494$. Subsequent stratified analysis of performance by patient race
@@ -131,20 +132,19 @@ suggests unbiased performance, though representation of certain minority subgrou
 
 \subsection{Data}
 
-Initial evaluation and ablations of the M-JEPA architecture were conducted using the CIFAR-10 \cite{krizhevsky2009learning} image dataset. 
-CIFAR-10 consists of 60,000 32x32 color images in 10 classes with 6,000 images per class, making it an excellent dataset for prototyping and evaluation of deep learning models.
+Initial evaluation and ablations of the algorithm were conducted using the CIFAR-10 \cite{krizhevsky2009learning} image dataset. 
+CIFAR-10 consists of 60,000 32x32 color images in 10 classes with 6,000 images per class, making it an excellent dataset for prototyping and evaluation of deep learning models
+in limited data scenarios.
 We follow the train/test partition defined by the creators of the CIFAR-10 dataset, using the training partition for both self-supervised and supervised training. \cite{krizhevsky2009learning}
 
-Two datasets are leveraged to evaluate the M-JEPA architecture in the medical domain. For final performance testing, we leverage the $20\%$ of the EMBED \cite{embed2023} dataset made
-available to the AWS Open Data program. 
-
-An independent training set was prepared consisting of 452,952 unique mammograms across 
+To train MiT-UB for breast cancer triage an independent training set was prepared consisting of 452,952 unique mammograms across 
 six data sources spanning five continents, representing 30,906 unique patients. This dataset consists entirely of female patients,
-and includes data licensed or purchased by MedCognetics Inc. from 2020 to 2023 from the U.S., U.K., Germany, India, Brazil, and Nigeria. The mean age at examination is $59.17$ years.
-Standard mammographic screening exams from an additional 821 female patients were used to evaluate the performance of the M-JEPA architecture. Ground truth for this validation set
+and includes data licensed or purchased by MedCognetics Inc. from 2020 to 2023 from the U.S., U.K., Germany, India, Brazil, and Nigeria. Standard mammographic screening exams from an additional 821 female patients were used for validation. Ground truth for this validation set
 was established through biopsy confirmation or two year stability. 
 These exams were sourced from U.S. based clinical sites not included in the training set to ensure independence of training and validation data.
 
+For final performance testing, we leverage the subset of EMBED \cite{embed2023} made available to the AWS Open Data program, 
+coresponding to approximately $20\%$ of the total dataset.
 Final performance testing and stratified analysis was conducted using EMBED. The data available through the AWS Open Data program is comprised of $72924$ mammography studies from $23256$ patients. Of these, $72922$ studies are  full-field digital mammography (FFDM) exams and $29961$ are synthetic 2D.
 There is substantial representation of African American ($N=9561$) and White ($N=8641$) patients, with lower representation for Hispanic ($N=1270$), Asian ($N=1552$), and Native American ($N=62$) patients. The BIRADS breast density distribution roughly follows the distribution of the general U.S. population ($\mathrm{A}=2036$, $\mathrm{B}=9328$, $\mathrm{C}=10128$, $\mathrm{D}=1579$). Most mammograms were captured using Hologic machines ($N=447496$), with minority representation from GE ($N=30590$) and Fujifilm ($N=8247$).
 
@@ -166,6 +166,9 @@ The design of the standard ViT architecture is shown in Figure \ref{fig:vit}. An
 Patches are then flattened into a sequence of tokens, which are embedded into a feature space using a linear layer.
 Multiple transformer layers are applied to the sequence of tokens, with self attention and MLP layers interleaved. 
 The output of the ViT backbone is a sequence of feature vectors, equal in length to the number of patches in the input image.
+Squared ReLU (\reluTwo) \cite{so2022relu2} is adopted as the default activation function for all MLP layers in the ViT backbone,  
+a decision suppored by ablations on CIFAR-10. 
+Biases are omitted from all attention and MLP layers.
 
 \begin{figure}[H]
     \centering
@@ -175,7 +178,7 @@ The output of the ViT backbone is a sequence of feature vectors, equal in length
 \end{figure}
 
 Since the ViT architecture is permutation invariant, positional information is injected in the form of a positional embedding.
-MiT-UB adopts a factorized fractional position encoding to improve the model's ability to generalize to high resolution inputs, which is depicted in Figure \ref{fig:position-encoding}. 
+MiT-UB adopts a factorized fractional position encoding \cite{navit2024} to improve the model's ability to generalize to high resolution inputs, which is depicted in Figure \ref{fig:position-encoding}. 
 Token positions are normalized to a coordinate in the range $[-1, 1]$ and fed as independent features into a single linear layer. The output is a position embedding which is added to the original token embedding.
 
 
@@ -188,7 +191,6 @@ Token positions are normalized to a coordinate in the range $[-1, 1]$ and fed as
 \end{figure}
 
 
-Squared ReLU (\reluTwo) \cite{so2022relu2} is adopted as the default activation function for all MLP layers in the ViT backbone. Biases are omitted from all attention and MLP layers.
 
 
 Scaling a standard ViT to the resolution of mammograms is prohibitively expensive in terms of memory and compute, due to the quadratic complexity of the self attention operation.
@@ -196,7 +198,7 @@ To address this we modify the standard ViT to perform cross-attention between a 
 from architectures like the Perceiver \cite{jaegle2021perceiver}, GPViT \cite{yang2023gpvit}, and ViTAR \cite{fan2024vitar}. First, the high resolution set of tokens are adaptively pooled to a
 fixed size using either average or max pooling. These pooled tokens are then processed using a standard ViT self attention backbone. To recover high resolution information a series of
 additional transformer layers are added which incorporate a cross-attention operation using the pooled tokens as queries and the high-resolution input tokens as keys and values. 
-This approach makes AViT non-quadratic in computational complexity with respect to the input sequence length, making it suitable for the high resolution input data found in medical images.
+This approach is non-quadratic in computational complexity with respect to the input sequence length, making it suitable for the high resolution input data found in medical images.
 The design of AViT is shown in Figure \ref{fig:avit}.
 
 \begin{figure}[H]
@@ -283,18 +285,18 @@ video memory, enabling high batch sizes of $> 512$ with ease.
 
 \subsection{Mammographic Pre-training}
 
-Training using the MedCognetics proprietary dataset was done on MedCognetics hardware due to restrictions on data access. MedCognetics training infrastructure
-used consisted of 2 RTX 3090 GPUs, 24 CPU cores, and 128GB of RAM. Depending on the training configuration, RAM and CPU resources. Pre-processing of DICOM files
+Training using the MedCognetics proprietary dataset was done on MedCognetics hardware due to restrictions on data access. The MedCognetics training infrastructure
+used consisted of 2 RTX 3090 GPUs, 24 CPU cores, and 128GB of RAM. Pre-processing of DICOM files
 into 16-bit grayscale TIFFs was done using \href{https://github.com/medcognetics/torch-dicom}{torch-dicom}, an open source library provided by MedCognetics.
 During preprocessing, any empty space is cropped away from the image before resizing to a fixed resolution. Resize operations are performed such that the aspect
 ratio of the original image is preserved, with padding added when necessary to achieve the desired resolution. Tomosynthesis mammograms, which contain volumetric
-data, are compressed into a 2D image by maximum intensity projection. DICOM metadata is organized into a SQL database
+data, are compressed into a 2D image by maximum intensity projection.
 
 \subsection{EMBED}
 
 Evaluation of MiT-UB using the EMBED dataset was conducted using the AIM-AHEAD Service Workbench cloud infrastructure. 
 Models trained on the MedCognetics dataset were uploaded to Service Workbench, where the test set mammograms were processed
-by the algorithms. The service workbench environment used an NVIDIA T4 GPU with 16GB of video memory, on which a throughput of 1-2 images/second was achieved.
+by the algorithms. The service workbench environment used was equipped with an NVIDIA T4 GPU with 16GB of video memory, on which a throughput of 1-2 images/second was achieved.
 
 
 \section{Research Findings and Results}
@@ -309,7 +311,8 @@ The baseline JEPA architecture yielded a modest accuracy of $49.85\%$, but was f
 the JEPA architecture involves a student model attempting to predict features from a teacher model, mode collapse occurs when both the 
 student and teacher learn to predict identical features for all inputs (e.g. all zeros). This solution space is undesirable and was addressed
 through the incorporation of a contrastive loss term into the model's training procedure which improved stability and resulted in a higher 
-accuracy of $66.28\%$. 
+accuracy of $66.28\%$. Replacing JEPA's mean squared error loss with a cosine similarity loss, in conjunction with the use of a novel activation function
+SigSiLU (defined in Table \ref{tab:cifar10-accuracies-activation}), improved accuracy to $70.15\%$.
 
 \begin{table}[H]
     \centering
@@ -326,14 +329,14 @@ accuracy of $66.28\%$.
         +Supervised Fine-Tuning & \textbf{81.97} \\
         \bottomrule
     \end{tabular}
-    \caption{CIFAR-10 Validation Accuracies. Each row with a '+' indicates a cumulative change applied to the configuration of the previous row, building upon the JEPA Baseline. $^\dagger$Indicates results obtained through linear probing.}
+    \caption{CIFAR-10 Accuracies. Each row with a '+' indicates a cumulative change applied to the configuration of the previous row, building upon the JEPA Baseline. $^\dagger$Indicates results obtained through linear probing.}
     \label{tab:cifar10-accuracies}
 \end{table}
 
 After optimizing hyperparameters and increasing model size, a second round of ablations was conducted to determine the best activation function for the MLP layers of the ViT backbone.
 At this point we adopt the fixed hyperparameters shown in Table \ref{tab:cifar10-hparams} for remaining CIFAR-10 ablations. 
 A minimal set of augmentations is adopted for these ablations: random horizontal / vertical flipping and color jitter. The results of this ablation study are shown 
-in Table \ref{tab:cifar10-accuracies-activation}. Given its strong performance, high sparsity, and computational efficiency, \reluTwo is selected as the default activation function in MiT-UB.
+in Table \ref{tab:cifar10-accuracies-activation}. Given its strong performance, high sparsity, and computational efficiency, \reluTwo\ is selected as the default activation function in MiT-UB.
 
 \begin{table}[H]
     \centering
@@ -393,8 +396,8 @@ Next, we explore methods of improving the performance of MiT-UB on CIFAR-10 usin
     \item Removing the stop-gradient operation from the M-JEPA linear probe.
 \end{enumerate}
 
-Performance of these methods is compared in Table \ref{tab:cifar10-tune-method}. For LoRA fine tuning a rank and scale factor of $32$ are adopted. A fresh supervised baseline is established using the optimized design found from previous
-ablations and hyperparameter optimization.
+Performance of these methods is compared in Table \ref{tab:cifar10-tune-method}. For LoRA fine tuning a rank and scale factor of $32$ are adopted. 
+A fresh supervised baseline is established using the optimized design found from previous ablations and hyperparameter optimization.
 
 \begin{table}[H]
     \centering
@@ -421,7 +424,7 @@ performance of a ConvNeXT \cite{liu2022convnext} baseline which achieves $91.6\%
 
 The optimized backbone design found through CIFAR-10 ablations is scaled up for application to mammograms. A model dimension of $768$ and depth of $24$
 is selected, yielding a backbone of $155\mathrm{M}$ parameters. A head dimension of $64$ is selected, the maximum allowed under Flash Attention \cite{dao2022flash}
-on a RTX 3090 GPU. Training is conducted in three stages, starting with low resolution ViT training, followed by high resolution AViT training, and finally
+on a RTX 3090 GPU. Training is conducted in three stages, starting with low resolution ViT pre-training, followed by high resolution AViT pre-training, and finally
 supervised fine tuning of the AViT backbone on breast cancer triage. These stages are summarized in Table \ref{tab:mammo-training}.
 Table \ref{tab:mammo-val-metrics} reports the primary metric and value for each training stage. Breast cancer triage AUROC
 for validation data is computed on a per-study basis by computing the maximum of individual image scores within a study.
@@ -458,8 +461,8 @@ for validation data is computed on a per-study basis by computing the maximum of
     \label{tab:mammo-val-metrics}
 \end{table}
 
-This model was then tested on breast cancer triage performance on the EMBED test set. Each of the four standard views was independently processed to compute a triage score. Triage scores within breasts were averaged, and scores between breasts were reduced using a maximum operation. This yields a single triage score for each exam on which performance is evaluated.
-A visualization of case score computation is shown in Figure \ref{fig:case-score}.
+This model was then tested on breast cancer triage performance using the EMBED test set. Each of the four standard views was independently processed to compute a triage score. Triage scores within breasts were averaged, and scores between breasts were reduced using a maximum operation. This yields a single triage score for each exam on which performance is evaluated.
+A visualization of exam triage score computation is shown in Figure \ref{fig:case-score}.
 AUROC is considered the primary evaluation metric, but thresholded metrics like sensitivity and specificity are also reported using a fixed threshold of $0.5$, the results of which are shown in Table \ref{tab:triage-cohort}. The model achieves a performance in line with its validation performance, indicating that the model is well calibrated for the task of mammographic breast cancer triage.
 For brevity this report focuses stratified analysis on the patient's race, the results of which are shown in Table \ref{tab:triage-race}. In cohorts with sufficient sample size the algorithm achieves comparable performance across racial groups. Unforunately the limited number of malignant exams for racial groups other than white and African-American limit the ability to draw conclusions about the model's performance across these groups.
 
@@ -498,7 +501,7 @@ theoretical motivation were proposed and implemented through highly optimized GP
 any performance benefit over existing baselines. Large amounts of time and effort were spent prematurely optimizing these methods,
 a waste of resources that could have been mitigated by more thoroughly testing unoptimized versions of the proposed methods.
 
-Conversely, a major success of this project was in how the characteristics of the vision transformer were leveraged to a positive end. Much attention is paid to the quadratic complexity of the self attention operation in ViTs and their ineffectiveness in data constrained environments. However, ViT's strengths of permutation invariance, cardinality invariance, and receptive field deformability are strengths that can be exploited to a useful end. In particular, the paradigm of adding adaptive layers to a ViT backbone to form an AViT architecture is a clever way to scale ViTs from existing backbones.
+Conversely, a major success of this project was in how the characteristics of the vision transformer were leveraged to a positive end. Much attention is paid to the quadratic complexity of the self attention operation in ViTs and their ineffectiveness in data constrained environments. However, ViT's strengths of permutation invariance, cardinality invariance, and receptive field deformability can be exploited to a useful end. In particular, the paradigm of adding adaptive layers to a ViT backbone to form an AViT architecture is a clever way to scale ViTs from existing backbones.
 
 Finally, a lesson for future fellows working with the EMBED dataset (specifically the subset available to research fellows) is to be mindful of its relatively limited population of malignant exams. Based on the prevalence of cancer in the U.S. screening population, an enriched test set of $N \geq 400$ malignant studies is desirable. Creating a test set of this size would leave less than $300$ patients with malignant findings for training and validation of a model. Fellow may wish to consider supplementing the EMBED dataset with additional mammograms from public datasets, or pursuing research questions that leverage EMBED's large population of benign studies.
 
@@ -507,15 +510,16 @@ Finally, a lesson for future fellows working with the EMBED dataset (specificall
 % Restate your research topic, restate your research question, summarize and connect the results of the findings, and conclude your final thoughts. (250-500 words)
 
 This research project proposed and evaluated a new vision transformer architecture for medical imaging with a focus on
-self supervised learning techniques in order to improve algorithmic performance on minority cohorts and mitigate the impact in label bias.
+self supervised learning techniques in order to improve algorithmic performance on minority cohorts and mitigate the impact of label bias.
 A Joint-Embedding Predictive Architecture was chosen as the foundation for self supervised learning and augmented with a series of modifications to improve performance and stability, which we term M-JEPA. Ablations using M-JEPA were conducted on CIFAR-10 to optimize the design of MiT-UB in a limited training data environment. From these ablations we observed a maximum linear probing accuracy of $79.29\%$ and a maximum supervised fine-tuning accuracy of $87.5\%$. The accuracy achieved by linear probing rivals the accuracy obtained by supervised training from scratch ($80.3\%$) and the fine-tuning accuracy approaches the performance of a supervised ConvNeXT baseline ($91.6\%$). These results indicate that M-JEPA can effectively leverage a limited pool of unlabeled data to learn feature representations that are useful for downstream tasks.
 Additionally, the significant increase in accuracy between supervised training from scratch and fine-tuning with M-JEPA pre-training suggests that M-JEPA pre-training can improve performance in conditions where labeled data is limited or expensive to obtain.
 
 Using the optimizations discovered through CIFAR-10, we apply MiT-UB to the task of mammographic breast cancer triage. 
-A $150\mathrm{M}$ parameter MiT-UB backbone was selected for this task, and training was conducted in three stages. First, a low resolution ViT backbone was trained on a large dataset of unlabeled mammograms. Next, the ViT backbone was converted into an AViT backbone and fine-tuned at a higher resolution on the same dataset. Finally, the AViT backbone was fine-tuned at high resolution on a smaller dataset of labeled mammograms with a focus on breast cancer triage performance.
+A $150\mathrm{M}$ parameter MiT-UB backbone was selected for this task, and training was conducted in three stages. First, a low resolution ViT backbone was trained on a large dataset of unlabeled mammograms. Next, the ViT backbone was converted into an AViT backbone and fine-tuned at a higher resolution on the same dataset. Finally, the AViT backbone was fine-tuned at high resolution for breast cancer triage.
 When evaluated on the EMBED test set the model achieves a breast cancer triage AUROC of $0.8494$. Comparable performance is achieved on racial subroups for which there is a sufficient number of malignant exams for testing.
 
-Future work could further optimize MiT-UB, explore self supervised training tasks beyond M-JEPA, conduct additional stratified analysis using EMBED, or curate supplemental testing data that represents a more diverse set of patients.
+Future work could further optimize MiT-UB, explore self supervised training tasks beyond M-JEPA, explore M-JEPA's efficacy under varying data constraints, conduct additional stratified analysis using EMBED, or curate supplemental testing data that represents a more diverse set of patients.
+There is significant room to improve the design of MiT-UB, and additional research into it's capabilities and limitations is encouraged.
 
 
 \pagebreak

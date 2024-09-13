@@ -144,7 +144,7 @@ was established through biopsy confirmation or two year stability.
 These exams were sourced from U.S. based clinical sites not included in the training set to ensure independence of training and validation data.
 
 For final performance testing, we leverage the subset of EMBED \cite{embed2023} made available to the AWS Open Data program, 
-coresponding to approximately $20\%$ of the total dataset.
+corresponding to approximately $20\%$ of the total dataset.
 Final performance testing and stratified analysis was conducted using EMBED. The data available through the AWS Open Data program is comprised of $72924$ mammography studies from $23256$ patients. Of these, $72922$ studies are  full-field digital mammography (FFDM) exams and $29961$ are synthetic 2D.
 There is substantial representation of African American ($N=9561$) and White ($N=8641$) patients, with lower representation for Hispanic ($N=1270$), Asian ($N=1552$), and Native American ($N=62$) patients. The BIRADS breast density distribution roughly follows the distribution of the general U.S. population ($\mathrm{A}=2036$, $\mathrm{B}=9328$, $\mathrm{C}=10128$, $\mathrm{D}=1579$). Most mammograms were captured using Hologic machines ($N=447496$), with minority representation from GE ($N=30590$) and Fujifilm ($N=8247$).
 
@@ -167,12 +167,12 @@ Patches are then flattened into a sequence of tokens, which are embedded into a 
 Multiple transformer layers are applied to the sequence of tokens, with self attention and MLP layers interleaved. 
 The output of the ViT backbone is a sequence of feature vectors, equal in length to the number of patches in the input image.
 Squared ReLU (\reluTwo) \cite{so2022relu2} is adopted as the default activation function for all MLP layers in the ViT backbone,  
-a decision suppored by ablations on CIFAR-10. 
+a decision supported by ablations on CIFAR-10. 
 Biases are omitted from all attention and MLP layers.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.6\textwidth]{./figures/vit.png}
+    \includesvg[width=0.6\textwidth]{./figures/vit_backbone.svg}
     \caption{Standard Vision Transformer (ViT) Architecture}
     \label{fig:vit}
 \end{figure}
@@ -203,7 +203,7 @@ The design of AViT is shown in Figure \ref{fig:avit}.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth]{./figures/avit.png}
+    \includesvg[width=0.75\textwidth]{./figures/avit.svg}
     \caption{Adaptive Vision Transformer (AViT) Architecture}
     \label{fig:avit}
 \end{figure}
@@ -464,7 +464,7 @@ for validation data is computed on a per-study basis by computing the maximum of
 This model was then tested on breast cancer triage performance using the EMBED test set. Each of the four standard views was independently processed to compute a triage score. Triage scores within breasts were averaged, and scores between breasts were reduced using a maximum operation. This yields a single triage score for each exam on which performance is evaluated.
 A visualization of exam triage score computation is shown in Figure \ref{fig:case-score}.
 AUROC is considered the primary evaluation metric, but thresholded metrics like sensitivity and specificity are also reported using a fixed threshold of $0.5$, the results of which are shown in Table \ref{tab:triage-cohort}. The model achieves a performance in line with its validation performance, indicating that the model is well calibrated for the task of mammographic breast cancer triage.
-For brevity this report focuses stratified analysis on the patient's race, the results of which are shown in Table \ref{tab:triage-race}. In cohorts with sufficient sample size the algorithm achieves comparable performance across racial groups. Unforunately the limited number of malignant exams for racial groups other than white and African-American limit the ability to draw conclusions about the model's performance across these groups.
+For brevity this report focuses stratified analysis on the patient's race, the results of which are shown in Table \ref{tab:triage-race}. In cohorts with sufficient sample size the algorithm achieves comparable performance across racial groups. Unfortunately the limited number of malignant exams for racial groups other than white and African-American limit the ability to draw conclusions about the model's performance across these groups.
 
 
 \begin{figure}[H]
@@ -516,10 +516,11 @@ Additionally, the significant increase in accuracy between supervised training f
 
 Using the optimizations discovered through CIFAR-10, we apply MiT-UB to the task of mammographic breast cancer triage. 
 A $150\mathrm{M}$ parameter MiT-UB backbone was selected for this task, and training was conducted in three stages. First, a low resolution ViT backbone was trained on a large dataset of unlabeled mammograms. Next, the ViT backbone was converted into an AViT backbone and fine-tuned at a higher resolution on the same dataset. Finally, the AViT backbone was fine-tuned at high resolution for breast cancer triage.
-When evaluated on the EMBED test set the model achieves a breast cancer triage AUROC of $0.8494$. Comparable performance is achieved on racial subroups for which there is a sufficient number of malignant exams for testing.
+When evaluated on the EMBED test set the model achieves a breast cancer triage AUROC of $0.8494$. Comparable performance is achieved on racial subgroups for which there is a sufficient number of malignant exams for testing.
 
 Future work could further optimize MiT-UB, explore self supervised training tasks beyond M-JEPA, explore M-JEPA's efficacy under varying data constraints, conduct additional stratified analysis using EMBED, or curate supplemental testing data that represents a more diverse set of patients.
 There is significant room to improve the design of MiT-UB, and additional research into it's capabilities and limitations is encouraged.
+I will attempt to make the source code for MiT-UB available on GitHub at \href{https://github.com/TidalPaladin/mit-ub}{https://github.com/TidalPaladin/mit-ub}.
 
 
 \pagebreak
@@ -535,8 +536,9 @@ There is significant room to improve the design of MiT-UB, and additional resear
 \textbf{I hereby attest that my research project is complete.}
 
 \vspace{1cm}
-\noindent X \underline{\hspace{10cm}}  \\
+\IfFileExists{./signature.svg}{\noindent \includesvg[width=0.5\textwidth]{./signature.svg} \\}{\noindent \textbf{[Signature Missing]} \\}
 \\
 \noindent \textbf{Name Print:} Scott Chase Waggener \hfill \textbf{Date:} \today
+
 
 \end{document}

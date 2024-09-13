@@ -1,0 +1,11 @@
+ViTs
+ViT
+M-JEPA
+ConvNeXT
+AViT
+MiT-UB
+AUROC
+Waggener
+Lakshman
+JEPA
+MedCognetics

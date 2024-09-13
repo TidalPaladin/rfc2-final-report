@@ -1,0 +1,2 @@
+# AIM-AHEAD Research Fellowship Final Report
+This repository contains the latex source code for the final report of my AIM-AHEAD Research Fellowship. My research project was "MiT-UB: A Multi-Domain Unbiased Medical Vision Foundation Model". A PDF copy of the report will be available under "Releases".
